@@ -353,7 +353,7 @@ var flags = append([]cli.Flag{
 	&cli.StringFlag{
 		Name:    "forge-url",
 		Usage:   "url of the forge",
-		Sources: cli.EnvVars("WOODPECKER_FORGE_URL", "WOODPECKER_GITHUB_URL", "WOODPECKER_GITLAB_URL", "WOODPECKER_GITEA_URL", "WOODPECKER_FORGEJO_URL", "WOODPECKER_BITBUCKET_URL", "WOODPECKER_BITBUCKET_DC_URL"),
+		Sources: cli.EnvVars("WOODPECKER_FORGE_URL", "WOODPECKER_GITHUB_URL", "WOODPECKER_GITLAB_URL", "WOODPECKER_GITEA_URL", "WOODPECKER_FORGEJO_URL", "WOODPECKER_GITCODE_URL", "WOODPECKER_BITBUCKET_URL", "WOODPECKER_BITBUCKET_DC_URL"),
 	},
 	&cli.StringFlag{
 		Sources: cli.NewValueSourceChain(
@@ -363,6 +363,7 @@ var flags = append([]cli.Flag{
 				"WOODPECKER_GITLAB_CLIENT_FILE",
 				"WOODPECKER_GITEA_CLIENT_FILE",
 				"WOODPECKER_FORGEJO_CLIENT_FILE",
+				"WOODPECKER_GITCODE_CLIENT_FILE",
 				"WOODPECKER_BITBUCKET_CLIENT_FILE",
 				"WOODPECKER_BITBUCKET_DC_CLIENT_ID_FILE")),
 			cli.EnvVar("WOODPECKER_FORGE_CLIENT"),
@@ -370,6 +371,7 @@ var flags = append([]cli.Flag{
 			cli.EnvVar("WOODPECKER_GITLAB_CLIENT"),
 			cli.EnvVar("WOODPECKER_GITEA_CLIENT"),
 			cli.EnvVar("WOODPECKER_FORGEJO_CLIENT"),
+			cli.EnvVar("WOODPECKER_GITCODE_CLIENT"),
 			cli.EnvVar("WOODPECKER_BITBUCKET_CLIENT"),
 			cli.EnvVar("WOODPECKER_BITBUCKET_DC_CLIENT_ID")),
 		Name:  "forge-oauth-client",
@@ -386,6 +388,7 @@ var flags = append([]cli.Flag{
 				"WOODPECKER_GITLAB_SECRET_FILE",
 				"WOODPECKER_GITEA_SECRET_FILE",
 				"WOODPECKER_FORGEJO_SECRET_FILE",
+				"WOODPECKER_GITCODE_SECRET_FILE",
 				"WOODPECKER_BITBUCKET_SECRET_FILE",
 				"WOODPECKER_BITBUCKET_DC_CLIENT_SECRET_FILE",
 			)),
@@ -394,6 +397,7 @@ var flags = append([]cli.Flag{
 			cli.EnvVar("WOODPECKER_GITLAB_SECRET"),
 			cli.EnvVar("WOODPECKER_GITEA_SECRET"),
 			cli.EnvVar("WOODPECKER_FORGEJO_SECRET"),
+			cli.EnvVar("WOODPECKER_GITCODE_SECRET"),
 			cli.EnvVar("WOODPECKER_BITBUCKET_SECRET"),
 			cli.EnvVar("WOODPECKER_BITBUCKET_DC_CLIENT_SECRET")),
 		Name:  "forge-oauth-secret",
@@ -411,6 +415,7 @@ var flags = append([]cli.Flag{
 			"WOODPECKER_GITLAB_SKIP_VERIFY",
 			"WOODPECKER_GITEA_SKIP_VERIFY",
 			"WOODPECKER_FORGEJO_SKIP_VERIFY",
+			"WOODPECKER_GITCODE_SKIP_VERIFY",
 			"WOODPECKER_BITBUCKET_SKIP_VERIFY"),
 	},
 	&cli.StringFlag{
@@ -461,6 +466,14 @@ var flags = append([]cli.Flag{
 		Sources: cli.EnvVars("WOODPECKER_FORGEJO"),
 		Name:    "forgejo",
 		Usage:   "forgejo driver is enabled",
+	},
+	//
+	// GitCode
+	//
+	&cli.BoolFlag{
+		Sources: cli.EnvVars("WOODPECKER_GITCODE"),
+		Name:    "gitcode",
+		Usage:   "gitcode driver is enabled",
 	},
 	//
 	// Bitbucket

@@ -21,6 +21,7 @@ const (
 	ForgeTypeGitlab              ForgeType = "gitlab"
 	ForgeTypeGitea               ForgeType = "gitea"
 	ForgeTypeForgejo             ForgeType = "forgejo"
+	ForgeTypeGitCode             ForgeType = "gitcode"
 	ForgeTypeBitbucket           ForgeType = "bitbucket"
 	ForgeTypeBitbucketDatacenter ForgeType = "bitbucket-dc"
 	ForgeTypeAddon               ForgeType = "addon"

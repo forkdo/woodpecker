@@ -148,6 +148,11 @@ func setupForgeService(c *cli.Command, _store store.Store) error {
 		if _forge.URL == "" {
 			_forge.URL = "https://next.forgejo.org"
 		}
+	case c.Bool("gitcode"):
+		_forge.Type = model.ForgeTypeGitCode
+		if _forge.URL == "" {
+			_forge.URL = "https://gitcode.com"
+		}
 	case c.Bool("bitbucket"):
 		_forge.Type = model.ForgeTypeBitbucket
 	case c.Bool("bitbucket-dc"):

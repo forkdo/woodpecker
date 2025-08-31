@@ -12,6 +12,7 @@ import (
 	"go.woodpecker-ci.org/woodpecker/v3/server/forge/bitbucket"
 	"go.woodpecker-ci.org/woodpecker/v3/server/forge/bitbucketdatacenter"
 	"go.woodpecker-ci.org/woodpecker/v3/server/forge/forgejo"
+	"go.woodpecker-ci.org/woodpecker/v3/server/forge/gitcode"
 	"go.woodpecker-ci.org/woodpecker/v3/server/forge/gitea"
 	"go.woodpecker-ci.org/woodpecker/v3/server/forge/github"
 	"go.woodpecker-ci.org/woodpecker/v3/server/forge/gitlab"
@@ -32,6 +33,8 @@ func Forge(forge *model.Forge) (forge.Forge, error) {
 		return setupGitea(forge)
 	case model.ForgeTypeForgejo:
 		return setupForgejo(forge)
+	case model.ForgeTypeGitCode:
+		return setupGitCode(forge)
 	case model.ForgeTypeBitbucketDatacenter:
 		return setupBitbucketDatacenter(forge)
 	default:
@@ -105,6 +108,33 @@ func setupForgejo(forge *model.Forge) (forge.Forge, error) {
 		Str("type", string(forge.Type)).
 		Msg("setting up forge")
 	return forgejo.New(opts)
+}
+
+func setupGitCode(forge *model.Forge) (forge.Forge, error) {
+	serverURL, err := url.Parse(forge.URL)
+	if err != nil {
+		return nil, err
+	}
+
+	opts := gitcode.Opts{
+		URL:               strings.TrimRight(serverURL.String(), "/"),
+		OAuthClientID:     forge.OAuthClientID,
+		OAuthClientSecret: forge.OAuthClientSecret,
+		SkipVerify:        forge.SkipVerify,
+		OAuthHost:         forge.OAuthHost,
+	}
+	if len(opts.URL) == 0 {
+		return nil, fmt.Errorf("WOODPECKER_GITCODE_URL must be set")
+	}
+	log.Debug().
+		Str("url", opts.URL).
+		Str("oauth-host", opts.OAuthHost).
+		Bool("skip-verify", opts.SkipVerify).
+		Bool("oauth-client-id-set", opts.OAuthClientID != "").
+		Bool("oauth-secret-id-set", opts.OAuthClientSecret != "").
+		Str("type", string(forge.Type)).
+		Msg("setting up forge")
+	return gitcode.New(opts)
 }
 
 func setupGitLab(forge *model.Forge) (forge.Forge, error) {
