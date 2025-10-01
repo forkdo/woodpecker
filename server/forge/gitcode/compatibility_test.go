@@ -26,7 +26,6 @@ func TestGitCodeAPICompatibility(t *testing.T) {
 	// 确保所有必需的 API 方法都被正确调用
 
 	opts := Opts{
-		URL:               "https://gitcode.com",
 		OAuthClientID:     "test-client-id",
 		OAuthClientSecret: "test-client-secret",
 	}
@@ -37,7 +36,7 @@ func TestGitCodeAPICompatibility(t *testing.T) {
 
 	// 验证基本配置
 	gc := gitcode.(*GitCode)
-	assert.Equal(t, "https://gitcode.com", gc.url)
+	assert.Equal(t, "https://gitcode.com", gc.URL())
 	assert.Equal(t, "test-client-id", gc.oAuthClientID)
 	assert.Equal(t, "test-client-secret", gc.oAuthClientSecret)
 }
@@ -47,7 +46,6 @@ func TestRequiredAPIMethods(t *testing.T) {
 	// 这个测试确保 GitCode 实现包含所有 Woodpecker 需要的方法
 
 	opts := Opts{
-		URL:               "https://gitcode.com",
 		OAuthClientID:     "test-client-id",
 		OAuthClientSecret: "test-client-secret",
 	}

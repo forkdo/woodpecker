@@ -286,6 +286,7 @@
             "show_errors": "显示错误",
             "status": {
                 "blocked": "已屏蔽",
+                "created": "已创建",
                 "declined": "已拒绝",
                 "error": "错误",
                 "failure": "失败",

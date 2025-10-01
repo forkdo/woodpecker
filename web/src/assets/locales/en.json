@@ -248,6 +248,7 @@
       "status": {
         "status": "Status: {status}",
         "blocked": "blocked",
+        "created": "created",
         "pending": "pending",
         "running": "running",
         "started": "started",

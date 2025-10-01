@@ -68,22 +68,10 @@ func toRepo(from *Repository) *model.Repo {
 	// 处理私有状态 - GitCode 使用 bool 类型
 	isPrivate := from.Private
 
-	// 处理权限 - 由于没有明确的权限字段，根据仓库类型推断
-	canPull := true   // 默认有读取权限
-	canPush := false  // 默认没有写入权限
-	canAdmin := false // 默认没有管理权限
-
-	// 如果是公开仓库，给予基本权限
-	if !isPrivate {
-		canPull = true
-	}
-
-	// 如果用户是仓库所有者（通过 namespace 判断），给予完整权限
-	// 注意：这里需要在实际使用时通过用户信息来判断
-	// 暂时给予基本权限，具体权限会在运行时通过其他方式确定
-	if !isPrivate {
-		canPush = true // 公开仓库假设有推送权限
-	}
+	// 处理权限 - 使用 GitCode API 返回的权限信息
+	canPull := from.Permission.Pull
+	canPush := from.Permission.Push
+	canAdmin := from.Permission.Admin
 
 	// 获取头像 - 使用创建者的头像
 	avatar := ""

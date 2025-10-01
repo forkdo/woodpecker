@@ -251,6 +251,13 @@ type Repository struct {
 		Type    string `json:"type"`
 	} `json:"enterprise"`
 
+	// 权限信息
+	Permission struct {
+		Pull  bool `json:"pull"`
+		Push  bool `json:"push"`
+		Admin bool `json:"admin"`
+	} `json:"permission"`
+
 	// 其他字段
 	Members             []string      `json:"members"`
 	ProjectLabels       []interface{} `json:"project_labels"`
@@ -262,7 +269,7 @@ type Repository struct {
 type Branch struct {
 	Name   string `json:"name"`
 	Commit struct {
-		SHA string `json:"sha"`
+		ID string `json:"id"` // GitCode 使用 "id" 而不是 "sha"
 	} `json:"commit"`
 }
 
@@ -318,7 +325,11 @@ type CreateHookRequest struct {
 // GetUser 获取当前用户信息
 func (c *GitCodeClient) GetUser(ctx context.Context) (*User, error) {
 	var user User
-	log.Printf("GitCode API: Getting user info with token: %s...", c.token[:10])
+	tokenPreview := c.token
+	if len(tokenPreview) > 10 {
+		tokenPreview = tokenPreview[:10] + "..."
+	}
+	log.Printf("GitCode API: Getting user info with token: %s", tokenPreview)
 	err := c.get(ctx, "/user", &user)
 	if err != nil {
 		log.Printf("GitCode API Error getting user: %v", err)
@@ -401,16 +412,31 @@ func (c *GitCodeClient) GetFileContent(ctx context.Context, owner, repo, path, r
 	return io.ReadAll(resp.Body)
 }
 
-// GetTree 获取目录树结构 (基于 GitCode 文档)
+// GetTree 获取目录树结构 (基于 GitCode 官方文档)
+// https://docs.gitcode.com/docs/apis/get-api-v-5-repos-owner-repo-git-trees-sha
 func (c *GitCodeClient) GetTree(ctx context.Context, owner, repo, sha string, recursive bool) (*Tree, error) {
+	// 根据 GitCode API 文档：https://api.gitcode.com/api/v5/repos/:owner/:repo/git/trees/:sha
 	endpoint := fmt.Sprintf("/repos/%s/%s/git/trees/%s", owner, repo, sha)
+
+	// 添加查询参数
+	params := make([]string, 0)
 	if recursive {
-		endpoint += "?recursive=1"
+		params = append(params, "recursive=1")
+	}
+
+	if len(params) > 0 {
+		endpoint += "?" + strings.Join(params, "&")
 	}
 
 	var tree Tree
 	err := c.get(ctx, endpoint, &tree)
-	return &tree, err
+	if err != nil {
+		log.Printf("GitCode API: GetTree failed for %s/%s at %s: %v", owner, repo, sha, err)
+		return nil, err
+	}
+
+	log.Printf("GitCode API: GetTree success for %s/%s at %s, got %d entries", owner, repo, sha, len(tree.Tree))
+	return &tree, nil
 }
 
 // CreateHook 创建 Webhook

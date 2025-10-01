@@ -27,19 +27,18 @@ import (
 )
 
 const (
-	hookEvent       = "X-Gitcode-Event"
-	hookPush        = "Push Hook"
-	hookCreated     = "create"
-	hookPullRequest = "pull_request"
-	hookRelease     = "release"
+	hookEvent        = "X-Gitcode-Event"
+	hookPush         = "Push Hook"
+	hookTagPush      = "Tag Push Hook"
+	hookMergeRequest = "Merge Request Hook"
+	hookCreated      = "create"
+	hookPullRequest  = "pull_request"
+	hookRelease      = "release"
 
 	actionOpen   = "opened"
 	actionSync   = "synchronized"
 	actionClose  = "closed"
 	actionReopen = "reopened"
-
-	refBranch = "branch"
-	refTag    = "tag"
 )
 
 // parseHook parses a GitCode hook from an http.Request and returns
@@ -49,6 +48,10 @@ func parseHook(r *http.Request) (*model.Repo, *model.Pipeline, error) {
 	switch hookType {
 	case hookPush:
 		return parsePushHook(r.Body)
+	case hookTagPush:
+		return parseTagPushHook(r.Body)
+	case hookMergeRequest:
+		return parseMergeRequestHook(r.Body)
 	case hookCreated:
 		return parseCreatedHook(r.Body)
 	case hookPullRequest:
@@ -144,23 +147,67 @@ func parsePullRequestHook(payload io.Reader) (*model.Repo, *model.Pipeline, erro
 		return nil, nil, err
 	}
 
-	if pr.PullRequest == nil {
-		// this should never have happened but it did - so we check
-		return nil, nil, fmt.Errorf("parsed pull_request webhook does not contain pull_request info")
+	// GitCode 使用 merge_request 字段
+	if pr.MergeRequest.ID == 0 {
+		return nil, nil, fmt.Errorf("parsed pull_request webhook does not contain merge_request info")
 	}
 
 	// Don't trigger pipelines for non-code changes ...
-	if pr.Action != actionOpen &&
-		pr.Action != actionSync &&
-		pr.Action != actionClose &&
-		pr.Action != actionReopen {
-		log.Debug().Msgf("pull_request action is '%s' and no open or sync", pr.Action)
+	action := pr.MergeRequest.Action
+	if action != "open" &&
+		action != "update" &&
+		action != "close" &&
+		action != "reopen" {
+		log.Debug().Msgf("pull_request action is '%s' and not supported", action)
 		return nil, nil, nil
 	}
 
-	repo = toRepo(pr.Repo)
-	pipeline = pipelineFromPullRequest(pr)
+	repo = repoFromPullRequestHook(pr)
+	pipeline = pipelineFromPullRequestHook(pr)
 	return repo, pipeline, err
+}
+
+// parseTagPushHook parses a tag push hook and returns the Repo and Pipeline details.
+func parseTagPushHook(payload io.Reader) (*model.Repo, *model.Pipeline, error) {
+	push, err := parsePush(payload)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// 确保这是标签推送
+	if !strings.HasPrefix(push.Ref, "refs/tags/") {
+		log.Debug().Msgf("Tag Push Hook received but ref is not a tag: %s", push.Ref)
+		return nil, nil, nil
+	}
+
+	// 从 push hook 构建 Repository 对象
+	repo := &model.Repo{
+		ForgeRemoteID: model.ForgeRemoteID(fmt.Sprintf("%d", push.ProjectID)),
+		Owner:         push.Project.Namespace,
+		Name:          push.Project.Name,
+		FullName:      push.Project.PathWithNamespace,
+		Avatar:        push.Project.AvatarURL,
+		ForgeURL:      push.Project.WebURL,
+		Clone:         push.Project.GitHTTPURL,
+		CloneSSH:      push.Project.GitSSHURL,
+		Branch:        push.Project.DefaultBranch,
+		IsSCMPrivate:  push.Project.VisibilityLevel == 0,
+		Perm: &model.Perm{
+			Pull:  true,
+			Push:  true,
+			Admin: false,
+		},
+	}
+
+	pipeline := pipelineFromTag(push)
+	return repo, pipeline, nil
+}
+
+// parseMergeRequestHook parses a merge request hook and returns the Repo and Pipeline details.
+func parseMergeRequestHook(payload io.Reader) (*model.Repo, *model.Pipeline, error) {
+	// GitCode 的 Merge Request Hook 可能与 Pull Request Hook 使用相似的数据结构
+	// 先尝试作为 Pull Request 解析
+	return parsePullRequestHook(payload)
 }
 
 // parseReleaseHook parses a release hook and returns the Repo and Pipeline details.

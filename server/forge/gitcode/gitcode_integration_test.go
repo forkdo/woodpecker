@@ -37,10 +37,8 @@ func TestGitCodeIntegration(t *testing.T) {
 
 	// 创建 GitCode forge 实例
 	forge, err := New(Opts{
-		URL:               "https://gitcode.com",
 		OAuthClientID:     "test-client-id",
 		OAuthClientSecret: "test-client-secret",
-		SkipVerify:        false,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, forge)
@@ -127,10 +125,8 @@ func TestGitCodeIntegration(t *testing.T) {
 // TestGitCodeForgeInterface 测试 GitCode 是否正确实现了 Forge 接口
 func TestGitCodeForgeInterface(t *testing.T) {
 	forge, err := New(Opts{
-		URL:               "https://gitcode.com",
 		OAuthClientID:     "test-client-id",
 		OAuthClientSecret: "test-client-secret",
-		SkipVerify:        false,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, forge)

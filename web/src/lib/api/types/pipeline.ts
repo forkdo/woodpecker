@@ -91,6 +91,7 @@ export interface Pipeline {
 
 export type PipelineStatus =
   | 'blocked'
+  | 'created'
   | 'declined'
   | 'error'
   | 'failure'

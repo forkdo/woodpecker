@@ -78,7 +78,7 @@ func TestGitCodeClient_WithToken(t *testing.T) {
 
 		for i, repo := range repos {
 			if i < 3 { // 只显示前3个
-				t.Logf("   - %s (%s)", repo.FullName, repo.HTMLURL)
+				t.Logf("   - %s (%s)", repo.FullName, repo.WebURL)
 			}
 		}
 	})

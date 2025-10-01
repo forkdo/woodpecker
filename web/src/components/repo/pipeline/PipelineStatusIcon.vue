@@ -35,6 +35,7 @@ const { t } = useI18n();
 
 const statusDescriptions = {
   blocked: t('repo.pipeline.status.blocked'),
+  created: t('repo.pipeline.status.created'),
   declined: t('repo.pipeline.status.declined'),
   error: t('repo.pipeline.status.error'),
   failure: t('repo.pipeline.status.failure'),

@@ -1,8 +1,126 @@
 package gitcode
 
-// GitCode Webhook 数据结构
+// pullRequestHook GitCode pull request webhook 数据结构
+type pullRequestHook struct {
+	ObjectKind  string `json:"object_kind"`   // "merge_request"
+	EventType   string `json:"event_type"`    // "merge_request"
+	GitBranch   string `json:"git_branch"`    // 分支名称
+	GitCommitNo string `json:"git_commit_no"` // 提交号
+	ManualBuild bool   `json:"manual_build"`  // 是否手动构建
+	UUID        string `json:"uuid"`          // 唯一标识符
 
-// pushHook GitCode push webhook 数据结构 <fix>
+	User struct {
+		ID        int    `json:"id"`
+		Name      string `json:"name"`
+		Username  string `json:"username"`
+		Email     string `json:"email"`
+		AvatarURL string `json:"avatar_url"`
+	} `json:"user"`
+
+	Project struct {
+		ID                int    `json:"id"`
+		Name              string `json:"name"`
+		Description       string `json:"description"`
+		WebURL            string `json:"web_url"`
+		AvatarURL         string `json:"avatar_url"`
+		GitSSHURL         string `json:"git_ssh_url"`
+		GitHTTPURL        string `json:"git_http_url"`
+		Namespace         string `json:"namespace"`
+		VisibilityLevel   int    `json:"visibility_level"`
+		PathWithNamespace string `json:"path_with_namespace"`
+		DefaultBranch     string `json:"default_branch"`
+		Homepage          string `json:"homepage"`
+		URL               string `json:"url"`
+		SSHURL            string `json:"ssh_url"`
+		HTTPURL           string `json:"http_url"`
+	} `json:"project"`
+
+	MergeRequest struct {
+		ID                        int    `json:"id"`
+		IID                       int    `json:"iid"`
+		Title                     string `json:"title"`
+		Description               string `json:"description"`
+		State                     string `json:"state"`
+		CreatedAt                 string `json:"created_at"`
+		UpdatedAt                 string `json:"updated_at"`
+		TargetBranch              string `json:"target_branch"`
+		SourceBranch              string `json:"source_branch"`
+		AuthorID                  int    `json:"author_id"`
+		TargetProjectID           int    `json:"target_project_id"`
+		SourceProjectID           int    `json:"source_project_id"`
+		Action                    string `json:"action"`
+		Act                       string `json:"act"`
+		ActDesc                   string `json:"act_desc"`
+		URL                       string `json:"url"`
+		MergeStatus               string `json:"merge_status"`
+		WorkInProgress            bool   `json:"work_in_progress"`
+		MergeWhenPipelineSucceeds bool   `json:"merge_when_pipeline_succeeds"`
+
+		Author struct {
+			ID        int    `json:"id"`
+			Name      string `json:"name"`
+			Username  string `json:"username"`
+			Email     string `json:"email"`
+			AvatarURL string `json:"avatar_url"`
+		} `json:"author"`
+
+		LastCommit struct {
+			ID        string `json:"id"`
+			Message   string `json:"message"`
+			URL       string `json:"url"`
+			Timestamp string `json:"timestamp"`
+			Author    struct {
+				Name  string `json:"name"`
+				Email string `json:"email"`
+			} `json:"author"`
+		} `json:"last_commit"`
+
+		Source struct {
+			ID                int    `json:"id"`
+			Name              string `json:"name"`
+			PathWithNamespace string `json:"path_with_namespace"`
+			WebURL            string `json:"web_url"`
+			GitHTTPURL        string `json:"git_http_url"`
+			GitSSHURL         string `json:"git_ssh_url"`
+			Namespace         string `json:"namespace"`
+			VisibilityLevel   int    `json:"visibility_level"`
+			DefaultBranch     string `json:"default_branch"`
+			AvatarURL         string `json:"avatar_url"`
+			Homepage          string `json:"homepage"`
+			URL               string `json:"url"`
+		} `json:"source"`
+
+		Target struct {
+			ID                int    `json:"id"`
+			Name              string `json:"name"`
+			PathWithNamespace string `json:"path_with_namespace"`
+			WebURL            string `json:"web_url"`
+			GitHTTPURL        string `json:"git_http_url"`
+			GitSSHURL         string `json:"git_ssh_url"`
+			Namespace         string `json:"namespace"`
+			VisibilityLevel   int    `json:"visibility_level"`
+			DefaultBranch     string `json:"default_branch"`
+			AvatarURL         string `json:"avatar_url"`
+			Homepage          string `json:"homepage"`
+			URL               string `json:"url"`
+		} `json:"target"`
+	} `json:"merge_request"`
+
+	Repository struct {
+		Name            string `json:"name"`
+		Description     string `json:"description"`
+		VisibilityLevel int    `json:"visibility_level"`
+		GitHTTPURL      string `json:"git_http_url"`
+		GitSSHURL       string `json:"git_ssh_url"`
+		URL             string `json:"url"`
+		Homepage        string `json:"homepage"`
+	} `json:"repository"`
+
+	Labels  []interface{} `json:"labels"`
+	Changes interface{}   `json:"changes"`
+}
+
+// pushHook GitCode push webhook 数据结构
 type pushHook struct {
 	// 事件基本信息
 	ObjectKind  string `json:"object_kind"`  // 事件类型，此处为 "push"
@@ -77,36 +195,12 @@ type pushHook struct {
 	UUID        string `json:"uuid"`          // 本次推送事件的唯一标识符
 }
 
-// pullRequestHook GitCode pull request webhook 数据结构
-type pullRequestHook struct {
-	Action      string       `json:"action"`
-	Number      int64        `json:"number"`
-	PullRequest *PullRequest `json:"pull_request"`
-	Repo        *Repository  `json:"repository"`
-	Sender      *User        `json:"sender"`
-}
-
 // releaseHook GitCode release webhook 数据结构
 type releaseHook struct {
 	Action  string      `json:"action"`
 	Repo    *Repository `json:"repository"`
 	Sender  *User       `json:"sender"`
 	Release *Release    `json:"release"`
-}
-
-// Commit GitCode commit 信息
-type Commit struct {
-	ID        string `json:"id"`        // 提交的 SHA 值
-	Message   string `json:"message"`   // 提交信息
-	URL       string `json:"url"`       // 提交详情页面的 URL
-	Timestamp string `json:"timestamp"` // 提交时间戳
-	Author    struct {
-		Name  string `json:"name"`  // 提交作者的名称
-		Email string `json:"email"` // 提交作者的邮箱
-	} `json:"author"`
-	Added    []string `json:"added"`    // 本次提交新增的文件列表
-	Removed  []string `json:"removed"`  // 本次提交删除的文件列表
-	Modified []string `json:"modified"` // 本次提交修改的文件列表
 }
 
 // Release GitCode release 信息

@@ -111,25 +111,11 @@ func setupForgejo(forge *model.Forge) (forge.Forge, error) {
 }
 
 func setupGitCode(forge *model.Forge) (forge.Forge, error) {
-	serverURL, err := url.Parse(forge.URL)
-	if err != nil {
-		return nil, err
-	}
-
 	opts := gitcode.Opts{
-		URL:               strings.TrimRight(serverURL.String(), "/"),
 		OAuthClientID:     forge.OAuthClientID,
 		OAuthClientSecret: forge.OAuthClientSecret,
-		SkipVerify:        forge.SkipVerify,
-		OAuthHost:         forge.OAuthHost,
-	}
-	if len(opts.URL) == 0 {
-		return nil, fmt.Errorf("WOODPECKER_GITCODE_URL must be set")
 	}
 	log.Debug().
-		Str("url", opts.URL).
-		Str("oauth-host", opts.OAuthHost).
-		Bool("skip-verify", opts.SkipVerify).
 		Bool("oauth-client-id-set", opts.OAuthClientID != "").
 		Bool("oauth-secret-id-set", opts.OAuthClientSecret != "").
 		Str("type", string(forge.Type)).

@@ -41,36 +41,27 @@ const (
 
 	// OAuth 端点
 	authorizeTokenURL = "%s/oauth/authorize"
-	accessTokenURL    = "%s/oauth/access_token"
+	accessTokenURL    = "%s/oauth/token"
 
 	// API 配置
 	defaultPageSize = 50
 )
 
 type Opts struct {
-	URL               string
 	OAuthClientID     string
 	OAuthClientSecret string
-	OAuthHost         string
-	SkipVerify        bool
 }
 
 type GitCode struct {
-	url               string
 	oAuthClientID     string
 	oAuthClientSecret string
-	oAuthHost         string
-	skipVerify        bool
 	pageSize          int
 }
 
 func New(opts Opts) (forge.Forge, error) {
 	return &GitCode{
-		url:               opts.URL,
 		oAuthClientID:     opts.OAuthClientID,
 		oAuthClientSecret: opts.OAuthClientSecret,
-		oAuthHost:         opts.OAuthHost,
-		skipVerify:        opts.SkipVerify,
 	}, nil
 }
 
@@ -79,26 +70,22 @@ func (c *GitCode) Name() string {
 }
 
 func (c *GitCode) URL() string {
-	return c.url
+	return defaultURL
 }
 
 func (c *GitCode) oauth2Config(ctx context.Context) (*oauth2.Config, context.Context) {
-	publicOAuthURL := c.oAuthHost
-	if publicOAuthURL == "" {
-		publicOAuthURL = c.url
-	}
 	return &oauth2.Config{
 			ClientID:     c.oAuthClientID,
 			ClientSecret: c.oAuthClientSecret,
 			Endpoint: oauth2.Endpoint{
-				AuthURL:  fmt.Sprintf(authorizeTokenURL, publicOAuthURL),
-				TokenURL: fmt.Sprintf(accessTokenURL, c.url),
+				AuthURL:  fmt.Sprintf(authorizeTokenURL, defaultURL),
+				TokenURL: fmt.Sprintf(accessTokenURL, defaultURL),
 			},
 			RedirectURL: fmt.Sprintf("%s/authorize", server.Config.Server.OAuthHost),
 		},
 
 		context.WithValue(ctx, oauth2.HTTPClient, &http.Client{Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: c.skipVerify},
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: false},
 			Proxy:           http.ProxyFromEnvironment,
 		}})
 }
@@ -121,7 +108,7 @@ func (c *GitCode) Login(ctx context.Context, req *forge_types.OAuthRequest) (*mo
 		return nil, redirectURL, err
 	}
 
-	client := NewGitCodeClient(token.AccessToken, c.skipVerify)
+	client := NewGitCodeClient(token.AccessToken, false)
 	account, err := client.GetUser(ctx)
 	if err != nil {
 		return nil, redirectURL, err
@@ -134,12 +121,12 @@ func (c *GitCode) Login(ctx context.Context, req *forge_types.OAuthRequest) (*mo
 		Login:         account.Login,
 		Email:         account.Email,
 		ForgeRemoteID: model.ForgeRemoteID(fmt.Sprint(account.ID)),
-		Avatar:        expandAvatar(c.url, account.AvatarURL),
+		Avatar:        expandAvatar(defaultURL, account.AvatarURL),
 	}, redirectURL, nil
 }
 
 func (c *GitCode) Auth(ctx context.Context, token, _ string) (string, error) {
-	client := NewGitCodeClient(token, c.skipVerify)
+	client := NewGitCodeClient(token, false)
 	user, err := client.GetUser(ctx)
 	if err != nil {
 		return "", err
@@ -179,7 +166,7 @@ func (c *GitCode) TeamPerm(_ *model.User, _ string) (*model.Perm, error) {
 }
 
 func (c *GitCode) Repo(ctx context.Context, u *model.User, remoteID model.ForgeRemoteID, owner, name string) (*model.Repo, error) {
-	client := NewGitCodeClient(u.AccessToken, c.skipVerify)
+	client := NewGitCodeClient(u.AccessToken, false)
 
 	if remoteID.IsValid() {
 		// GitCode 不支持直接通过 ID 获取仓库，需要从用户仓库列表中查找
@@ -210,7 +197,7 @@ func (c *GitCode) Repo(ctx context.Context, u *model.User, remoteID model.ForgeR
 }
 
 func (c *GitCode) Repos(ctx context.Context, u *model.User) ([]*model.Repo, error) {
-	client := NewGitCodeClient(u.AccessToken, c.skipVerify)
+	client := NewGitCodeClient(u.AccessToken, false)
 
 	log.Debug().Msgf("GitCode: Getting repos for user %s", u.Login)
 
@@ -239,7 +226,7 @@ func (c *GitCode) Repos(ctx context.Context, u *model.User) ([]*model.Repo, erro
 }
 
 func (c *GitCode) File(ctx context.Context, u *model.User, r *model.Repo, b *model.Pipeline, f string) ([]byte, error) {
-	client := NewGitCodeClient(u.AccessToken, c.skipVerify)
+	client := NewGitCodeClient(u.AccessToken, false)
 
 	// 确定要使用的 commit SHA 或分支名
 	ref := b.Commit
@@ -262,7 +249,7 @@ func (c *GitCode) File(ctx context.Context, u *model.User, r *model.Repo, b *mod
 }
 
 func (c *GitCode) Dir(ctx context.Context, u *model.User, r *model.Repo, b *model.Pipeline, f string) ([]*forge_types.FileMeta, error) {
-	client := NewGitCodeClient(u.AccessToken, c.skipVerify)
+	client := NewGitCodeClient(u.AccessToken, false)
 
 	// 确定要使用的 commit SHA
 	commitSHA := b.Commit
@@ -278,13 +265,16 @@ func (c *GitCode) Dir(ctx context.Context, u *model.User, r *model.Repo, b *mode
 			log.Debug().Err(err).Msgf("GitCode: Failed to get branch %s for %s/%s", branchName, r.Owner, r.Name)
 			return []*forge_types.FileMeta{}, nil
 		}
-		commitSHA = branch.Commit.SHA
+		commitSHA = branch.Commit.ID
 	}
 
 	// 使用 commit SHA 获取目录树（递归获取）
 	tree, err := client.GetTree(ctx, r.Owner, r.Name, commitSHA, true)
 	if err != nil {
 		log.Debug().Err(err).Msgf("GitCode: Failed to get tree for %s/%s at %s", r.Owner, r.Name, commitSHA)
+		// 如果获取树失败，尝试直接获取文件内容
+		// 对于手动触发的流水线，我们可以返回空的文件列表，让 Woodpecker 使用默认配置
+		log.Debug().Msgf("GitCode: Returning empty file list for manual pipeline trigger")
 		return []*forge_types.FileMeta{}, nil
 	}
 
@@ -374,7 +364,7 @@ func (c *GitCode) Netrc(u *model.User, r *model.Repo) (*model.Netrc, error) {
 }
 
 func (c *GitCode) Activate(ctx context.Context, u *model.User, r *model.Repo, link string) error {
-	client := NewGitCodeClient(u.AccessToken, c.skipVerify)
+	client := NewGitCodeClient(u.AccessToken, false)
 
 	hook := &CreateHookRequest{
 		URL:         link,
@@ -394,7 +384,7 @@ func (c *GitCode) Activate(ctx context.Context, u *model.User, r *model.Repo, li
 }
 
 func (c *GitCode) Deactivate(ctx context.Context, u *model.User, r *model.Repo, link string) error {
-	client := NewGitCodeClient(u.AccessToken, c.skipVerify)
+	client := NewGitCodeClient(u.AccessToken, false)
 
 	hooks, err := client.GetHooks(ctx, r.Owner, r.Name)
 	if err != nil {
@@ -412,7 +402,7 @@ func (c *GitCode) Deactivate(ctx context.Context, u *model.User, r *model.Repo, 
 
 func (c *GitCode) Branches(ctx context.Context, u *model.User, r *model.Repo, p *model.ListOptions) ([]string, error) {
 	token := common.UserToken(ctx, r, u)
-	client := NewGitCodeClient(token, c.skipVerify)
+	client := NewGitCodeClient(token, false)
 
 	branches, err := client.GetBranches(ctx, r.Owner, r.Name)
 	if err != nil {
@@ -427,21 +417,21 @@ func (c *GitCode) Branches(ctx context.Context, u *model.User, r *model.Repo, p 
 
 func (c *GitCode) BranchHead(ctx context.Context, u *model.User, r *model.Repo, branch string) (*model.Commit, error) {
 	token := common.UserToken(ctx, r, u)
-	client := NewGitCodeClient(token, c.skipVerify)
+	client := NewGitCodeClient(token, false)
 
 	b, err := client.GetBranch(ctx, r.Owner, r.Name, branch)
 	if err != nil {
 		return nil, err
 	}
 	return &model.Commit{
-		SHA:      b.Commit.SHA,
-		ForgeURL: fmt.Sprintf("%s/%s/%s/commit/%s", defaultURL, r.Owner, r.Name, b.Commit.SHA),
+		SHA:      b.Commit.ID,
+		ForgeURL: fmt.Sprintf("%s/%s/%s/commit/%s", defaultURL, r.Owner, r.Name, b.Commit.ID),
 	}, nil
 }
 
 func (c *GitCode) PullRequests(ctx context.Context, u *model.User, r *model.Repo, p *model.ListOptions) ([]*model.PullRequest, error) {
 	token := common.UserToken(ctx, r, u)
-	client := NewGitCodeClient(token, c.skipVerify)
+	client := NewGitCodeClient(token, false)
 
 	pullRequests, err := client.GetPullRequests(ctx, r.Owner, r.Name)
 	if err != nil {
@@ -506,7 +496,7 @@ func (c *GitCode) Org(ctx context.Context, u *model.User, owner string) (*model.
 
 // newGitCodeClient 创建新的 GitCode 客户端
 func (c *GitCode) newGitCodeClient(token string) *GitCodeClient {
-	return NewGitCodeClient(token, c.skipVerify)
+	return NewGitCodeClient(token, false)
 }
 
 func (c *GitCode) getChangedFilesForPR(ctx context.Context, repo *model.Repo, index int64) ([]string, error) {

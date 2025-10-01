@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/url"
 	"strings"
 	"time"
 
@@ -67,9 +66,24 @@ func pipelineFromPush(hook *pushHook) *model.Pipeline {
 }
 
 func getChangedFilesFromPushHook(hook *pushHook) []string {
-	// GitCode webhook 暂时不包含文件变更信息，返回空列表
-	// TODO: 根据实际 GitCode webhook 格式更新
-	return []string{}
+	var files []string
+	for _, commit := range hook.Commits {
+		files = append(files, commit.Added...)
+		files = append(files, commit.Modified...)
+		files = append(files, commit.Removed...)
+	}
+
+	// 去重
+	seen := make(map[string]bool)
+	var uniqueFiles []string
+	for _, file := range files {
+		if !seen[file] {
+			seen[file] = true
+			uniqueFiles = append(uniqueFiles, file)
+		}
+	}
+
+	return uniqueFiles
 }
 
 // pipelineFromTag extracts the Pipeline data from a GitCode tag hook.
@@ -91,39 +105,60 @@ func pipelineFromTag(hook *pushHook) *model.Pipeline {
 	}
 }
 
-// pipelineFromPullRequest extracts the Pipeline data from a GitCode pull_request hook.
-func pipelineFromPullRequest(hook *pullRequestHook) *model.Pipeline {
+// pipelineFromPullRequestHook extracts the Pipeline data from a GitCode pull_request hook.
+func pipelineFromPullRequestHook(hook *pullRequestHook) *model.Pipeline {
 	avatar := expandAvatar(
-		hook.Repo.HTTPURLToRepo,
-		fixMalformedAvatar(hook.Sender.AvatarURL),
+		hook.Project.WebURL,
+		fixMalformedAvatar(hook.User.AvatarURL),
 	)
 
 	event := model.EventPull
-	if hook.Action == actionClose {
+	if hook.MergeRequest.Action == "close" || hook.MergeRequest.State == "closed" {
 		event = model.EventPullClosed
 	}
 
 	pipeline := &model.Pipeline{
 		Event:    event,
-		Commit:   hook.PullRequest.Head.SHA,
-		ForgeURL: fmt.Sprintf("%s/%s/pulls/%d", defaultURL, hook.Repo.FullName, hook.Number),
-		Ref:      fmt.Sprintf("refs/pull/%d/head", hook.Number),
-		Branch:   hook.PullRequest.Base.Ref,
-		Message:  hook.PullRequest.Title,
-		Author:   hook.Sender.Login,
+		Commit:   hook.MergeRequest.LastCommit.ID,
+		ForgeURL: hook.MergeRequest.URL,
+		Ref:      fmt.Sprintf("refs/pull/%d/head", hook.MergeRequest.IID),
+		Branch:   hook.MergeRequest.TargetBranch,
+		Message:  hook.MergeRequest.Title,
+		Author:   hook.User.Username,
 		Avatar:   avatar,
-		Sender:   hook.Sender.Login,
-		Email:    hook.Sender.Email,
-		Title:    hook.PullRequest.Title,
+		Sender:   hook.User.Username,
+		Email:    hook.User.Email,
+		Title:    hook.MergeRequest.Title,
 		Refspec: fmt.Sprintf("%s:%s",
-			hook.PullRequest.Head.Ref,
-			hook.PullRequest.Base.Ref,
+			hook.MergeRequest.SourceBranch,
+			hook.MergeRequest.TargetBranch,
 		),
 		PullRequestLabels: []string{}, // GitCode 暂时不支持标签
-		FromFork:          false,      // GitCode 暂时不支持 fork 检测
+		FromFork:          hook.MergeRequest.Source.ID != hook.MergeRequest.Target.ID,
 	}
 
 	return pipeline
+}
+
+// repoFromPullRequestHook extracts the Repository data from a GitCode pull_request hook.
+func repoFromPullRequestHook(hook *pullRequestHook) *model.Repo {
+	return &model.Repo{
+		ForgeRemoteID: model.ForgeRemoteID(fmt.Sprintf("%d", hook.Project.ID)),
+		Owner:         hook.Project.Namespace,
+		Name:          hook.Project.Name,
+		FullName:      hook.Project.PathWithNamespace,
+		Avatar:        hook.Project.AvatarURL,
+		ForgeURL:      hook.Project.WebURL,
+		Clone:         hook.Project.GitHTTPURL,
+		CloneSSH:      hook.Project.GitSSHURL,
+		Branch:        hook.Project.DefaultBranch,
+		IsSCMPrivate:  hook.Project.VisibilityLevel == 0,
+		Perm: &model.Perm{
+			Pull:  true,
+			Push:  true,
+			Admin: false,
+		},
+	}
 }
 
 func pipelineFromRelease(hook *releaseHook) *model.Pipeline {
@@ -176,19 +211,4 @@ func fixMalformedAvatar(url string) string {
 		return strings.ReplaceAll(url, "//avatars/", "/avatars/")
 	}
 	return url
-}
-
-// matchingHooks return matching hooks.
-func matchingHooks(hooks []*Hook, rawURL string) *Hook {
-	link, err := url.Parse(rawURL)
-	if err != nil {
-		return nil
-	}
-	for _, hook := range hooks {
-		hookURL, err := url.Parse(hook.URL)
-		if err == nil && hookURL.Host == link.Host {
-			return hook
-		}
-	}
-	return nil
 }

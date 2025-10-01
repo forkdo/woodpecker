@@ -278,6 +278,7 @@
             "show_errors": "Afficher les erreurs",
             "status": {
                 "blocked": "bloqué",
+                "created": "créé",
                 "declined": "refusé",
                 "error": "en erreur",
                 "failure": "échoué",

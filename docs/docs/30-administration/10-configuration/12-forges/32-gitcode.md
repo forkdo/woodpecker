@@ -4,8 +4,8 @@ Woodpecker comes with built-in support for GitCode.com. To enable GitCode you sh
 
 ```bash
 WOODPECKER_GITCODE=true
-WOODPECKER_GITCODE_CLIENT_ID=${GITCODE_CLIENT_ID}
-WOODPECKER_GITCODE_CLIENT_SECRET=${GITCODE_CLIENT_SECRET}
+WOODPECKER_GITCODE_CLIENT=${GITCODE_CLIENT}
+WOODPECKER_GITCODE_SECRET=${GITCODE_SECRET}
 ```
 
 ## Registration
@@ -24,10 +24,8 @@ This is a full list of configuration options. Please note that many of these opt
 
 ```bash
 WOODPECKER_GITCODE=true
-WOODPECKER_GITCODE_CLIENT_ID=your_gitcode_oauth_client_id
-WOODPECKER_GITCODE_CLIENT_SECRET=your_gitcode_oauth_client_secret
-WOODPECKER_GITCODE_SKIP_VERIFY=false
-WOODPECKER_GITCODE_OAUTH_HOST=https://gitcode.com
+WOODPECKER_GITCODE_CLIENT=your_gitcode_oauth_client_id
+WOODPECKER_GITCODE_SECRET=your_gitcode_oauth_client_secret
 ```
 
 ### GITCODE
@@ -37,29 +35,17 @@ WOODPECKER_GITCODE_OAUTH_HOST=https://gitcode.com
 
 Enables the GitCode driver.
 
-### `WOODPECKER_GITCODE_CLIENT_ID`
+### `WOODPECKER_GITCODE_CLIENT`
 
 > Default: empty
 
 Configures the GitCode OAuth client id. This is used to authorize access.
 
-### `WOODPECKER_GITCODE_CLIENT_SECRET`
+### `WOODPECKER_GITCODE_SECRET`
 
 > Default: empty
 
 Configures the GitCode OAuth client secret. This is used to authorize access.
-
-### `WOODPECKER_GITCODE_SKIP_VERIFY`
-
-> Default: `false`
-
-Configure if SSL verification should be skipped.
-
-### `WOODPECKER_GITCODE_OAUTH_HOST`
-
-> Default: same as `WOODPECKER_GITCODE_URL`
-
-Configure the OAuth host if it differs from the GitCode URL.
 
 ## GitCode OAuth Setup
 
@@ -72,6 +58,14 @@ Configure the OAuth host if it differs from the GitCode URL.
    - **Scopes**: Select `read:user`, `read:repository`, `write:repository_hook`
 5. Save the application and note down the **Client ID** and **Client Secret**
 
+**Important Notes:**
+
+- The redirect URI must exactly match your Woodpecker server's URL with `/authorize` path
+- GitCode uses Gitea-compatible OAuth2 endpoints:
+  - Authorization URL: `https://gitcode.com/login/oauth/authorize`
+  - Token URL: `https://gitcode.com/login/oauth/access_token`
+- Make sure to select the correct scopes for proper functionality
+
 ## Compatibility
 
 GitCode is based on Gitea and uses Gitea-compatible APIs. Woodpecker uses the Gitea SDK to communicate with GitCode, ensuring full compatibility with:
@@ -82,6 +76,18 @@ GitCode is based on Gitea and uses Gitea-compatible APIs. Woodpecker uses the Gi
 - Push events
 - Tag and release events
 - Status reporting
+- Git Trees API for file discovery
+
+## API Support
+
+GitCode supports the following APIs that Woodpecker uses:
+
+- **User API**: `/api/v5/user` - Get current user information
+- **Repository API**: `/api/v5/user/repos` - List user repositories
+- **Git Trees API**: `/api/v5/repos/:owner/:repo/git/trees/:sha` - Get repository file tree
+- **File Content API**: `/api/v5/repos/:owner/:repo/raw/:path` - Get file content
+- **Branch API**: `/api/v5/repos/:owner/:repo/branches` - List and get branch information
+- **Webhook API**: `/api/v5/repos/:owner/:repo/hooks` - Manage repository webhooks
 
 ## Limitations
 

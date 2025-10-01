@@ -293,6 +293,7 @@
             "show_errors": "Fehler anzeigen",
             "status": {
                 "blocked": "blockiert",
+                "created": "erstellt",
                 "declined": "abgelehnt",
                 "error": "Fehler",
                 "failure": "fehlgeschlagen",

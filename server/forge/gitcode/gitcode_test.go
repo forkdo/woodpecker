@@ -24,10 +24,8 @@ import (
 
 func TestGitCode(t *testing.T) {
 	opts := Opts{
-		URL:               "https://gitcode.com",
 		OAuthClientID:     "test-client-id",
 		OAuthClientSecret: "test-client-secret",
-		SkipVerify:        false,
 	}
 
 	forge, err := New(opts)
@@ -42,7 +40,6 @@ func TestGitCode(t *testing.T) {
 
 func TestGitCodeNetrc(t *testing.T) {
 	opts := Opts{
-		URL:               "https://gitcode.com",
 		OAuthClientID:     "test-client-id",
 		OAuthClientSecret: "test-client-secret",
 	}
